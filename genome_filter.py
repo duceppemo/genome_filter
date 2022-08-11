@@ -29,11 +29,16 @@ class GenomeFilter(object):
         if self.cpu > cpu_count():
             self.cpu = cpu_count()
 
+        # Taxonomy
+        self.rank = args.rank
+        self.name = args.name
+
         # Variables
         self.fasta_list = list()
         self.report_list = list()
         self.busco_env_path = ''
         self.quast_env_path = ''
+        self.checkm_env_path = ''
 
         # Run
         self.run()
@@ -46,26 +51,41 @@ class GenomeFilter(object):
         self.fasta_list = GenomeFilter.get_fasta_files(self.input_folder)
 
         # BUSCO
-        busco_path = ''
+        print('Running BUSCO...')
         if not GenomeFilter.is_conda_env_installed('busco'):
             GenomeFilter.install_busco_env()
             self.busco_env_path = GenomeFilter.get_conda_env_path('busco')
         # if not GenomeFilter.is_env_activated('busco'):
         #     GenomeFilter.conda_activate('busco')
 
+        print('\tDownoading lineage database')
         lineage = GenomeFilter.get_lineage(self.lineage, self.output_folder)
+
+        print('\tParallel processing genomes')
         self.run_busco_parallel(self.fasta_list, self.output_folder, self.cpu, lineage, 'busco')
+
+        print('\tPreparing report')
         self.process_busco_reports()
         # GenomeFilter.conda_deactivate()
 
         # QUAST
-        quast_path = ''
+        print('Running QUAST...')
         if not GenomeFilter.is_conda_env_installed('quast'):
             GenomeFilter.install_quast_env()
             self.quast_env_path = GenomeFilter.get_conda_env_path('quast')
         # if not GenomeFilter.is_env_activated('quast'):
         #     GenomeFilter.conda_activate('quast')
         self.run_quast(self.fasta_list, self.output_folder, self.cpu, 'quast')
+        # GenomeFilter.conda_deactivate()
+
+        # checkm
+        print('Running CheckM...')
+        if not GenomeFilter.is_conda_env_installed('checkm'):
+            GenomeFilter.install_checkm_env()
+            self.quast_env_path = GenomeFilter.get_conda_env_path('checkm')
+        # if not GenomeFilter.is_env_activated('checkm'):
+        #     GenomeFilter.conda_activate('checkm')
+        self.run_checkm(self.fasta_list, self.input_folder, self.output_folder, self.cpu, 'checkm', self.rank, self.name)
         # GenomeFilter.conda_deactivate()
 
     # conda
@@ -106,6 +126,11 @@ class GenomeFilter(object):
     @staticmethod
     def install_quast_env():
         cmd = ['conda', 'create', '-y', '-n', 'quast', '-c', 'bioconda', 'quast']
+        subprocess.run(cmd)
+
+    @staticmethod
+    def install_checkm_env():
+        cmd = ['conda', 'create', '-y', '-n', 'checkm', '-c', 'bioconda', 'checkm-genome']
         subprocess.run(cmd)
 
     @staticmethod
@@ -249,6 +274,46 @@ class GenomeFilter(object):
                '--fast'] + fasta_list
         subprocess.run(conda_run + cmd)
 
+    @staticmethod
+    def run_checkm(fasta_list, input_folder, output_folder, cpu, env, rank, name):
+        # Create output folder
+        checkm_out = output_folder + '/checkm'
+        pathlib.Path(checkm_out).mkdir(parents=True, exist_ok=True)
+
+        # Put all input genome in a single folder (symbolic links)
+        checkm_tmp_folder = checkm_out + '/tmp'
+        pathlib.Path(checkm_tmp_folder).mkdir(parents=True, exist_ok=True)
+        for fasta_file in fasta_list:
+            # Make sure they all have the same file extension
+            os.symlink(fasta_file, checkm_tmp_folder + '/' + '.'.join(os.path.basename(fasta_file).split('.')[:-1]) + '.fasta')
+
+        # Run in conda environment
+        # conda_run = ['conda', 'run', '-n', env, ]
+        # cmd = ['checkm', 'lineage_wf',
+        #        '-x', 'fasta',
+        #        '-t', str(cpu),
+        #        checkm_tmp_folder,
+        #        checkm_out]
+        # subprocess.run(conda_run + cmd)
+
+        conda_run = ['conda', 'run', '-n', env, ]
+        cmd = ['checkm', 'taxonomy_wf',
+               '-x', 'fasta',
+               '-t', str(cpu),
+               rank,
+               name,
+               checkm_tmp_folder,
+               checkm_out]
+
+        f = open(checkm_out + '/checkm.txt', 'w')
+        subprocess.run(conda_run + cmd, stdout=f)
+        f.close()
+
+        # Remove temp folder
+        rmtree(checkm_tmp_folder)
+        rmtree(checkm_out + '/storage')
+        rmtree(checkm_out + '/bins')
+
 
 if __name__ == "__main__":
     max_cpu = cpu_count()
@@ -267,6 +332,16 @@ if __name__ == "__main__":
                         required=False,
                         type=int, default=max_cpu,
                         help='Number of CPU. Default is maximum CPU available({})'.format(max_cpu))
+    parser.add_argument('-r', '--rank', choices=['life', 'domain', 'phylum', 'class', 'order', 'family', 'genus', 'species'],
+                        required=True,
+                        type=str,
+                        help='Taxonomic level to use wiht CheckM')
+    parser.add_argument('-n', '--name', metavar='Bacillus cereus',
+                        required=True,
+                        type=str,
+                        help='Name of the taxon. E.g. "Bacillus cereus" if "-r" was "species.')
+
+    '[life,domain,phylum,class,order,family,genus,species]'
 
     # Get the arguments into an object
     arguments = parser.parse_args()
