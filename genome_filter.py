@@ -2,6 +2,7 @@
 
 import os
 import sys
+import io
 import subprocess
 from glob import glob
 import pandas as pd
@@ -188,7 +189,7 @@ class GenomeFilter(object):
                '--offline',
                '--quiet',
                '-c', str(cpu)]
-        subprocess.run(conda_run + cmd)
+        subprocess.run(conda_run + cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
     @staticmethod
     def run_busco_parallel(fasta_list, output_folder, cpu, lineage, env):
@@ -224,7 +225,7 @@ class GenomeFilter(object):
     @staticmethod
     def get_busco_reports(report_folder):
         return [y for x in os.walk(report_folder)
-                for y in glob(os.path.join(x[0], '*short_summary.specific*'))]
+                for y in glob(os.path.join(x[0], '*short_summary.specific*.txt'))]
 
     # Parse report info into dictionary
     """
@@ -272,47 +273,94 @@ class GenomeFilter(object):
                '--min-contig', str(0),
                '--output-dir', quast_out,
                '--fast'] + fasta_list
-        subprocess.run(conda_run + cmd)
+        subprocess.run(conda_run + cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
     @staticmethod
     def run_checkm(fasta_list, input_folder, output_folder, cpu, env, rank, name):
         # Create output folder
         checkm_out = output_folder + '/checkm'
-        pathlib.Path(checkm_out).mkdir(parents=True, exist_ok=True)
-
-        # Put all input genome in a single folder (symbolic links)
         checkm_tmp_folder = checkm_out + '/tmp'
+        checkm_fasta_folder = checkm_out + '/fasta'
+        pathlib.Path(checkm_out).mkdir(parents=True, exist_ok=True)
         pathlib.Path(checkm_tmp_folder).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(checkm_fasta_folder).mkdir(parents=True, exist_ok=True)
+
+        # Put all input genome in a single folder (symbolic links) with same file extension
         for fasta_file in fasta_list:
-            # Make sure they all have the same file extension
-            os.symlink(fasta_file, checkm_tmp_folder + '/' + '.'.join(os.path.basename(fasta_file).split('.')[:-1]) + '.fasta')
+            os.symlink(fasta_file, checkm_fasta_folder + '/' + '.'.join(os.path.basename(fasta_file).split('.')[:-1]) + '.fasta')
 
         # Run in conda environment
         # conda_run = ['conda', 'run', '-n', env, ]
         # cmd = ['checkm', 'lineage_wf',
         #        '-x', 'fasta',
         #        '-t', str(cpu),
-        #        checkm_tmp_folder,
+        #        checkm_fasta_folder,
         #        checkm_out]
         # subprocess.run(conda_run + cmd)
 
+        # conda_run = ['conda', 'run', '-n', env, ]
+        # cmd = ['checkm', 'taxonomy_wf',
+        #        '-x', 'fasta',
+        #        '-t', str(cpu),
+        #        rank,
+        #        name,
+        #        checkm_fasta_folder,
+        #        checkm_out]
+
+        # f = open(checkm_out + '/checkm.txt', 'w')
+        # subprocess.run(conda_run + cmd, stdout=f)
+        # f.close()
+
         conda_run = ['conda', 'run', '-n', env, ]
-        cmd = ['checkm', 'taxonomy_wf',
-               '-x', 'fasta',
-               '-t', str(cpu),
+        cmd = ['checkm', 'taxon_list',
+               '--rank', rank,
+               '--tmpdir', checkm_tmp_folder]
+
+        p1 = subprocess.Popen(conda_run + cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        if any(name in line for line in io.TextIOWrapper(p1.stdout, encoding="utf-8")):
+            print('\t{} found in {}.'.format(name, rank))
+        else:
+            raise Exception('{} not found in {}.'.format(name, rank))
+        # if name not in stdout.readlines():
+        #     raise Exception('{} not found in {}.'.format(name, rank))
+        p1.stdout.close()
+
+        cmd = ['checkm', 'taxon_set',
                rank,
                name,
-               checkm_tmp_folder,
-               checkm_out]
+               checkm_out + '/taxon_set.cs',
+               '--tmpdir', checkm_tmp_folder]
+        subprocess.run(conda_run + cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
-        f = open(checkm_out + '/checkm.txt', 'w')
-        subprocess.run(conda_run + cmd, stdout=f)
-        f.close()
+        cmd = ['checkm', 'analyze',
+               '-x', 'fasta',
+               '-t', str(cpu),
+               checkm_out + '/taxon_set.cs',
+               checkm_fasta_folder,
+               checkm_out]
+        subprocess.run(conda_run + cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+
+        cmd = ['checkm', 'qa',
+               '-t', str(cpu),
+               '-o', str(1),  # 1: summary output; 2: extended summary of bin statistics (includes GC, genome size, ...)
+               '-f', checkm_out + '/checkm_out.tsv',
+               '--tab_table',
+               checkm_out + '/taxon_set.cs',
+               checkm_out]
+        subprocess.run(conda_run + cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+
+
+        # f = open(checkm_out + '/checkm.txt', 'w')
+        # subprocess.run(conda_run + cmd, stdout=f)
+        # f.close()
+
 
         # Remove temp folder
         rmtree(checkm_tmp_folder)
+        rmtree(checkm_fasta_folder)
         rmtree(checkm_out + '/storage')
         rmtree(checkm_out + '/bins')
+        os.remove(checkm_out + '/taxon_set.cs')
 
 
 if __name__ == "__main__":
