@@ -15,7 +15,9 @@ import pathlib
 from shutil import rmtree
 
 
-# TODO -> add check for valid lineages?
+__author__ = 'duceppemo'
+__version__ = 'v0.1'
+
 
 
 class GenomeFilter(object):
@@ -56,8 +58,6 @@ class GenomeFilter(object):
         if not GenomeFilter.is_conda_env_installed('busco'):
             GenomeFilter.install_busco_env()
             self.busco_env_path = GenomeFilter.get_conda_env_path('busco')
-        # if not GenomeFilter.is_env_activated('busco'):
-        #     GenomeFilter.conda_activate('busco')
 
         print('\tDownoading lineage database')
         lineage = GenomeFilter.get_lineage(self.lineage, self.output_folder)
@@ -67,27 +67,20 @@ class GenomeFilter(object):
 
         print('\tPreparing report')
         self.process_busco_reports()
-        # GenomeFilter.conda_deactivate()
 
         # QUAST
         print('Running QUAST...')
         if not GenomeFilter.is_conda_env_installed('quast'):
             GenomeFilter.install_quast_env()
             self.quast_env_path = GenomeFilter.get_conda_env_path('quast')
-        # if not GenomeFilter.is_env_activated('quast'):
-        #     GenomeFilter.conda_activate('quast')
         self.run_quast(self.fasta_list, self.output_folder, self.cpu, 'quast')
-        # GenomeFilter.conda_deactivate()
 
         # checkm
         print('Running CheckM...')
         if not GenomeFilter.is_conda_env_installed('checkm'):
             GenomeFilter.install_checkm_env()
             self.quast_env_path = GenomeFilter.get_conda_env_path('checkm')
-        # if not GenomeFilter.is_env_activated('checkm'):
-        #     GenomeFilter.conda_activate('checkm')
         self.run_checkm(self.fasta_list, self.input_folder, self.output_folder, self.cpu, 'checkm', self.rank, self.name)
-        # GenomeFilter.conda_deactivate()
 
     # conda
     @staticmethod
@@ -289,28 +282,6 @@ class GenomeFilter(object):
         for fasta_file in fasta_list:
             os.symlink(fasta_file, checkm_fasta_folder + '/' + '.'.join(os.path.basename(fasta_file).split('.')[:-1]) + '.fasta')
 
-        # Run in conda environment
-        # conda_run = ['conda', 'run', '-n', env, ]
-        # cmd = ['checkm', 'lineage_wf',
-        #        '-x', 'fasta',
-        #        '-t', str(cpu),
-        #        checkm_fasta_folder,
-        #        checkm_out]
-        # subprocess.run(conda_run + cmd)
-
-        # conda_run = ['conda', 'run', '-n', env, ]
-        # cmd = ['checkm', 'taxonomy_wf',
-        #        '-x', 'fasta',
-        #        '-t', str(cpu),
-        #        rank,
-        #        name,
-        #        checkm_fasta_folder,
-        #        checkm_out]
-
-        # f = open(checkm_out + '/checkm.txt', 'w')
-        # subprocess.run(conda_run + cmd, stdout=f)
-        # f.close()
-
         conda_run = ['conda', 'run', '-n', env, ]
         cmd = ['checkm', 'taxon_list',
                '--rank', rank,
@@ -349,12 +320,6 @@ class GenomeFilter(object):
                checkm_out]
         subprocess.run(conda_run + cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
-
-        # f = open(checkm_out + '/checkm.txt', 'w')
-        # subprocess.run(conda_run + cmd, stdout=f)
-        # f.close()
-
-
         # Remove temp folder
         rmtree(checkm_tmp_folder)
         rmtree(checkm_fasta_folder)
@@ -366,10 +331,10 @@ class GenomeFilter(object):
 if __name__ == "__main__":
     max_cpu = cpu_count()
 
-    parser = ArgumentParser(description='Create dendrogram from a square distance matrix')
+    parser = ArgumentParser(description='Asses genome assemblies for completeness and contamination')
     parser.add_argument('-i', '--input', metavar='/input/folder',
                         required=True,
-                        help='Input folder containing the genomes in fasta format')
+                        help='Input folder containing the genomes in fasta format.')
     parser.add_argument('-o', '--output', metavar='/output/folder',
                         required=True,
                         help='Folder to hold the result files')
@@ -383,11 +348,12 @@ if __name__ == "__main__":
     parser.add_argument('-r', '--rank', choices=['life', 'domain', 'phylum', 'class', 'order', 'family', 'genus', 'species'],
                         required=True,
                         type=str,
-                        help='Taxonomic level to use wiht CheckM')
-    parser.add_argument('-n', '--name', metavar='Bacillus cereus',
+                        help='Taxonomic level to use wiht CheckM.')
+    parser.add_argument('-n', '--name', metavar='"Bacillus cereus"',
                         required=True,
                         type=str,
-                        help='Name of the taxon. E.g. "Bacillus cereus" if "-r" was "species.')
+                        help='Name of the taxon. E.g. "Bacillus cereus" if "-r" was "species". '
+                        'You have to used the double quotes for "species" becasue there is a space between the genus and species.')
 
     '[life,domain,phylum,class,order,family,genus,species]'
 
