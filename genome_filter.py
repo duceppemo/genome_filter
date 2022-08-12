@@ -115,7 +115,7 @@ class GenomeFilter(object):
     @staticmethod
     def install_busco_env():
         cmd = ['conda', 'create', '-y', '-n', 'busco', '-c', 'bioconda', '-c' 'anaconda', 'busco', 'pandas']
-        subprocess.run(cmd)
+        subprocess.run(cmd)Assess genome assemblies for completeness and contamination
 
     @staticmethod
     def install_quast_env():
@@ -331,7 +331,7 @@ class GenomeFilter(object):
 if __name__ == "__main__":
     max_cpu = cpu_count()
 
-    parser = ArgumentParser(description='Asses genome assemblies for completeness and contamination')
+    parser = ArgumentParser(description='Assess genome assemblies for completeness and contamination')
     parser.add_argument('-i', '--input', metavar='/input/folder',
                         required=True,
                         help='Input folder containing the genomes in fasta format.')
