@@ -19,7 +19,6 @@ __author__ = 'duceppemo'
 __version__ = 'v0.1'
 
 
-
 class GenomeFilter(object):
     def __init__(self, args):
         # Paths
@@ -115,7 +114,7 @@ class GenomeFilter(object):
     @staticmethod
     def install_busco_env():
         cmd = ['conda', 'create', '-y', '-n', 'busco', '-c', 'bioconda', '-c' 'anaconda', 'busco', 'pandas']
-        subprocess.run(cmd)Assess genome assemblies for completeness and contamination
+        subprocess.run(cmd)
 
     @staticmethod
     def install_quast_env():
