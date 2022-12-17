@@ -19,6 +19,9 @@ __author__ = 'duceppemo'
 __version__ = 'v0.1'
 
 
+# TODO
+# Make CheckM work with gzipped files
+
 class GenomeFilter(object):
     def __init__(self, args):
         # Paths
@@ -58,7 +61,7 @@ class GenomeFilter(object):
             GenomeFilter.install_busco_env()
             self.busco_env_path = GenomeFilter.get_conda_env_path('busco')
 
-        print('\tDownoading lineage database')
+        print('\tDowloading lineage database')
         lineage = GenomeFilter.get_lineage(self.lineage, self.output_folder)
 
         print('\tParallel processing genomes')
@@ -74,14 +77,15 @@ class GenomeFilter(object):
             self.quast_env_path = GenomeFilter.get_conda_env_path('quast')
         self.run_quast(self.fasta_list, self.output_folder, self.cpu, 'quast')
 
-        # checkm
+        # CheckM
         print('Running CheckM...')
         if not GenomeFilter.is_conda_env_installed('checkm'):
             GenomeFilter.install_checkm_env()
             self.quast_env_path = GenomeFilter.get_conda_env_path('checkm')
-        self.run_checkm(self.fasta_list, self.input_folder, self.output_folder, self.cpu, 'checkm', self.rank, self.name)
+        self.run_checkm(self.fasta_list, self.input_folder, self.output_folder, self.cpu,
+                        'checkm', self.rank, self.name)
 
-    # conda
+    # Conda
     @staticmethod
     def is_conda_installed():
         return os.path.exists(os.path.join(sys.prefix, 'conda-meta'))
@@ -147,7 +151,6 @@ class GenomeFilter(object):
 
         lineage_file = ''
         lin = ''
-        version = ''
         with open(output_folder + '/busco_downloads/file_versions.tsv', 'r') as f:
             for line in f:
                 if lineage in line:
@@ -279,7 +282,8 @@ class GenomeFilter(object):
 
         # Put all input genome in a single folder (symbolic links) with same file extension
         for fasta_file in fasta_list:
-            os.symlink(fasta_file, checkm_fasta_folder + '/' + '.'.join(os.path.basename(fasta_file).split('.')[:-1]) + '.fasta')
+            os.symlink(fasta_file, checkm_fasta_folder + '/' + '.'.join(os.path.basename(fasta_file).split('.')[:-1])
+                       + '.fasta')
 
         conda_run = ['conda', 'run', '-n', env, ]
         cmd = ['checkm', 'taxon_list',
@@ -302,6 +306,7 @@ class GenomeFilter(object):
                '--tmpdir', checkm_tmp_folder]
         subprocess.run(conda_run + cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
+        print('\tProcessing samples.')
         cmd = ['checkm', 'analyze',
                '-x', 'fasta',
                '-t', str(cpu),
@@ -310,6 +315,7 @@ class GenomeFilter(object):
                checkm_out]
         subprocess.run(conda_run + cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
+        print('\tGenerating output table.')
         cmd = ['checkm', 'qa',
                '-t', str(cpu),
                '-o', str(1),  # 1: summary output; 2: extended summary of bin statistics (includes GC, genome size, ...)
@@ -332,27 +338,27 @@ if __name__ == "__main__":
 
     parser = ArgumentParser(description='Assess genome assemblies for completeness and contamination')
     parser.add_argument('-i', '--input', metavar='/input/folder',
-                        required=True,
+                        required=True, type=str,
                         help='Input folder containing the genomes in fasta format.')
     parser.add_argument('-o', '--output', metavar='/output/folder',
                         required=True,
                         help='Folder to hold the result files')
     parser.add_argument('-l', '--lineage', metavar='rhizobiales_odb10',
-                        required=True,
+                        required=True, type=str,
                         help='See "https://busco.ezlab.org/list_of_lineages.html" to help find the correct lineage.')
     parser.add_argument('-t', '--threads', metavar=str(max_cpu),
-                        required=False,
-                        type=int, default=max_cpu,
+                        required=False, type=int, default=max_cpu,
                         help='Number of CPU. Default is maximum CPU available({})'.format(max_cpu))
-    parser.add_argument('-r', '--rank', choices=['life', 'domain', 'phylum', 'class', 'order', 'family', 'genus', 'species'],
-                        required=True,
-                        type=str,
-                        help='Taxonomic level to use wiht CheckM.')
+    parser.add_argument('-r', '--rank', choices=['life', 'domain', 'phylum', 'class', 'order', 'family',
+                                                 'genus', 'species'],
+                        required=True, type=str,
+                        help='Taxonomic level to use with CheckM.')
     parser.add_argument('-n', '--name', metavar='"Bacillus cereus"',
                         required=True,
                         type=str,
                         help='Name of the taxon. E.g. "Bacillus cereus" if "-r" was "species". '
-                        'You have to used the double quotes for "species" becasue there is a space between the genus and species.')
+                        'You have to used the double quotes for "species" because there is a space between '
+                             'the genus and species.')
 
     '[life,domain,phylum,class,order,family,genus,species]'
 
