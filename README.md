@@ -1,8 +1,25 @@
 # genome_filter
 Assess genome assemblies for completeness and contamination.
 
-## Usage
+## Installation
+```commandline
+# Create virtual environment with all needed tools
+# Try using "mamba" instead of "conda" for faster installaiton
+mamba create -n genome_filter -y -c conda-forge -c bioconda busco checkm2 quast pandas
+
+# Install CheckM2 diamond database 
+# https://zenodo.org/records/14897628/files/checkm2_database.tar.gz?download=1
+checkm2 database \
+    --download \
+    --path /your/save/location
+
+# Set DB location
+checkm2 database \
+    --setdblocation /your/save/location/CheckM2_database/uniref100.KO.1.dmnd
 ```
+
+## Usage
+```text
 usage: python genome_filter.py [-h] -i /input/folder -o /output/folder -l rhizobiales_odb10 [-t 64] -r
                         {life,domain,phylum,class,order,family,genus,species} -n "Bacillus cereus"
 
