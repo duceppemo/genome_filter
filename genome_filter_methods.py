@@ -28,6 +28,15 @@ class Methods(object):
         pathlib.Path(my_folder).mkdir(parents=True, exist_ok=True)
 
     @staticmethod
+    def find_all(name, path):
+        # https://stackoverflow.com/questions/1724693/find-a-file-in-python
+        result = []
+        for root, dirs, files in os.walk(path):
+            if name in files:
+                result.append(os.path.join(root, name))
+        return result
+
+    @staticmethod
     def get_busco_lineage(lineage, output_folder):
         download_folder = output_folder + '/busco_downloads/'
         lineage_folder = download_folder + 'lineages/'
@@ -157,13 +166,35 @@ class Methods(object):
 
     @staticmethod
     def run_quast(fasta_list, output_folder, cpu):
-        cmd = ['quast',
-               '--threads', str(cpu),
-               '--min-contig', str(0),
-               '--output-dir', output_folder,
-               '--fast'] + fasta_list
+        # Split large list into smaller lists
+        chunk_size = 1
+        list_of_list = [fasta_list[i: i + chunk_size] for i in range(0, len(fasta_list))]
 
-        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        for i, sublist in enumerate(list_of_list):
+            my_out = output_folder + '/' + str(i)
+            cmd = ['quast',
+                   '--threads', str(cpu),
+                   '--min-contig', str(0),
+                   '--output-dir', my_out,
+                   '--fast'] + sublist
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+
+        # Merge quast reports
+        # transposed_report.tsv
+        test = 1000
+        report_list = Methods.find_all('transposed_report.tsv', output_folder)
+        with open(output_folder + 'transposed_report.tsv', 'w') as f:
+            f.write('Assembly\t#contigs(>=0bp)\t#contigs(>=1000bp)\t#contigs(>=5000bp)\t#contigs(>=10000bp)'
+                    '\t#contigs(>=25000bp)\t#contigs(>=50000bp)\tTotallength(>=0bp)\tTotallength(>=1000bp)'
+                    '\tTotallength(>=5000bp)\tTotallength(>=10000bp)\tTotallength(>=25000bp)\tTotallength(>=50000bp)'
+                    '\t#contigs\tLargestcontig\tTotallength\tN50\tN90\tauN\tL50\tL90\t#Nsper100kbp\n')
+
+            # Merge files skipping first line
+            for report in report_list:
+                with open(report, 'r') as fh:
+                    next(fh, None)  # Skip first line
+                    for line in fh:
+                        f.write(line)
 
     @staticmethod
     def run_checkm2(fasta_list, output_folder, cpu, checkm2_db):

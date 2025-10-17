@@ -4,7 +4,7 @@ Assess genome assemblies for completeness and contamination.
 ## Installation
 ```commandline
 # Create virtual environment with all needed tools
-# Try using "mamba" instead of "conda" for faster installaiton
+# Try using "mamba" instead of "conda" for faster installation
 mamba create -n genome_filter -y -c conda-forge -c bioconda busco checkm2 quast pandas
 
 # Install CheckM2 diamond database 
