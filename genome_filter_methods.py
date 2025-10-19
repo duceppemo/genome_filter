@@ -167,7 +167,7 @@ class Methods(object):
     @staticmethod
     def run_quast(fasta_list, output_folder, cpu):
         # Split large list into smaller lists
-        chunk_size = 1
+        chunk_size = 1000
         list_of_list = [fasta_list[i: i + chunk_size] for i in range(0, len(fasta_list))]
 
         for i, sublist in enumerate(list_of_list):
@@ -181,7 +181,6 @@ class Methods(object):
 
         # Merge quast reports
         # transposed_report.tsv
-        test = 1000
         report_list = Methods.find_all('transposed_report.tsv', output_folder)
         with open(output_folder + 'transposed_report.tsv', 'w') as f:
             f.write('Assembly\t#contigs(>=0bp)\t#contigs(>=1000bp)\t#contigs(>=5000bp)\t#contigs(>=10000bp)'
@@ -195,6 +194,11 @@ class Methods(object):
                     next(fh, None)  # Skip first line
                     for line in fh:
                         f.write(line)
+
+        # Clean subfolder
+        for i, sublist in enumerate(list_of_list):
+            my_out = output_folder + '/' + str(i)
+            rmtree(my_out, ignore_errors=True)
 
     @staticmethod
     def run_checkm2(fasta_list, output_folder, cpu, checkm2_db):

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-
-
+import os.path
 from multiprocessing import cpu_count
 from argparse import ArgumentParser
 from genome_filter_methods import Methods
@@ -15,10 +14,10 @@ __version__ = 'v0.2'
 class GenomeFilter(object):
     def __init__(self, args):
         # Paths
-        self.input_folder = args.input
-        self.output_folder = args.output
+        self.input_folder = os.path.abspath(args.input)
+        self.output_folder = os.path.abspath(args.output)
         self.lineage = args.lineage
-        self.checkm2_db = args.database
+        self.checkm2_db = os.path.abspath(args.database)
 
         # Performance
         self.cpu = args.threads
