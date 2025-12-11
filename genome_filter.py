@@ -43,7 +43,7 @@ class GenomeFilter(object):
             fasta_list = Methods.get_fasta_files(self.input)
             n_fasta = len(fasta_list)
             print('\tFound {} genomes.'.format(n_fasta))
-        else if os.path.isfile(self.input):
+        elif os.path.isfile(self.input):
             fasta_list = [self.input]
         else:
             raise.Exception('Error with input folder / file.')
