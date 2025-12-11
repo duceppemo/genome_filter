@@ -46,7 +46,7 @@ class GenomeFilter(object):
         elif os.path.isfile(self.input):
             fasta_list = [self.input]
         else:
-            raise.Exception('Error with input folder / file.')
+            raise Exception('Error with input folder / file.')
 
         # BUSCO
         print('Running BUSCO...')
