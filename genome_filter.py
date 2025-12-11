@@ -14,7 +14,7 @@ __version__ = 'v0.2'
 class GenomeFilter(object):
     def __init__(self, args):
         # Paths
-        self.input_folder = os.path.abspath(args.input)
+        self.input = os.path.abspath(args.input)
         self.output_folder = os.path.abspath(args.output)
         self.lineage = args.lineage
         self.checkm2_db = os.path.abspath(args.database)
@@ -38,10 +38,15 @@ class GenomeFilter(object):
         Methods.make_folder(checkm2_folder)
 
         # Let's get to work
-        print('Getting fasta files...')
-        fasta_list = Methods.get_fasta_files(self.input_folder)
-        n_fasta = len(fasta_list)
-        print('\tFound {} genomes.'.format(n_fasta))
+        if os.path.isdir(self.input):
+            print('Getting fasta files...')
+            fasta_list = Methods.get_fasta_files(self.input)
+            n_fasta = len(fasta_list)
+            print('\tFound {} genomes.'.format(n_fasta))
+        else if os.path.isfile(self.input):
+            fasta_list = [self.input]
+        else:
+            raise.Exception('Error with input folder / file.'}
 
         # BUSCO
         print('Running BUSCO...')
@@ -69,9 +74,9 @@ if __name__ == "__main__":
     max_cpu = cpu_count()
 
     parser = ArgumentParser(description='Assess genome assemblies for completeness and contamination.')
-    parser.add_argument('-i', '--input', metavar='/input/folder',
+    parser.add_argument('-i', '--input', metavar='/input/folder or /input/file.fasta',
                         required=True, type=str,
-                        help='Input folder containing the genomes in fasta format. Mandatory.')
+                        help='Input fasta file or input folder containing the genomes in fasta format. Mandatory.')
     parser.add_argument('-o', '--output', metavar='/output/folder',
                         required=True,
                         help='Folder to hold the result files. Mandatory.')
